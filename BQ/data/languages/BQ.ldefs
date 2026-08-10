@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- TODO: sanity check these values -->
+<language_definitions>
+	<language processor="BQ"
+	          endian="little"
+	          size="16"
+	          variant="BQ"
+	          version="1.0"
+	          slafile="BQ.sla"
+	          processorspec="BQ.pspec"
+	          id="BQ:LE:8:BQ">
+		<description>BQ 8-bit LE</description>
+		<compiler name="default" spec="BQ.cspec" id="default"/>
+	</language>
+</language_definitions>

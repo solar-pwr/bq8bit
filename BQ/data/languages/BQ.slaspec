@@ -1,0 +1,360 @@
+#
+#    Ghidra processor module for TI's 8-bit BQ chips
+#    ===============================================
+#
+#    Copyright 2026 Jakub Strnad
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+
+define endian=little;
+define alignment=1;
+
+define space CODE type=ram_space size=2 wordsize=1 default;
+define space DATA type=ram_space size=2 wordsize=1;
+define space register type=register_space size=2;
+
+define register offset=0 size=2 [R0 R1 R2 R3 R4 R5 R6 R7 SP X9 X10 X11 X12 X13 X14 X15 PC FLAGS];
+define register offset=0 size=1 [R0L R0H R1L R1H R2L R2H R3L R3H R4L R4H R5L R5H R6L R6H R7L R7H];
+
+define bitrange ZF=FLAGS[0,1]
+		CF=FLAGS[1,1]
+		IE=FLAGS[2,1];
+
+define token first(8)
+	op_47 = (4,7)
+	op_37 = (3,7)
+	op = (0,7)
+	Rw = (0,2)
+	Rb = (0,3)
+	Rb_half = (0,2)
+;
+
+define token second(8)
+	Rw1_all = (0,3)
+	Rw2_all = (4,7)
+	Rw1 = (0,2)
+	Rw2 = (4,6)
+	Rb1 = (0,3)
+	Rb2 = (4,7)
+	fn = (4,7)
+	fn1 = (3,3)
+;
+
+define token third(8)
+	Rb3 = (0,3)
+	Rb4 = (4,7)
+;
+
+define token imm8(8)
+	data8 = (0,7)
+;
+
+define token imm16(16)
+	data16 = (0,15)
+;
+
+define token indirect(8)
+	Ra = (6,7)
+	offs = (0,5)
+;
+
+attach variables [Rw Rw1 Rw2] [R0 R1 R2 R3 R4 R5 R6 R7];
+attach variables [Rw1_all Rw2_all] [R0 R1 R2 R3 R4 R5 R6 R7 SP X9 X10 X11 X12 X13 X14 X15];
+attach variables [Rb Rb1 Rb2 Rb3 Rb4] [R0L R0H R1L R1H R2L R2H R3L R3H R4L R4H R5L R5H R6L R6H R7L R7H];
+attach variables Rb_half [R0L R0H R1L R1H R2L R2H R3L R3H];
+attach variables Ra [R4 R5 R6 SP];
+
+define pcodeop Macro;
+define pcodeop Unk;
+define pcodeop UnkFC;
+
+macro push8(x) {SP=SP-1; tmp:2=SP; *[DATA]:1 tmp = x;}
+macro push16(x) {SP=SP-2; tmp:2=SP; *[DATA]:2 tmp = 0; *[DATA]:2 tmp = x;}
+macro pop8(x) {tmp:2=SP; x = *[DATA]:1 tmp; SP=SP+1;}
+macro pop16(x) {tmp:2=SP; x = *[DATA]:2 tmp; SP=SP+2;}
+
+u8: data8 is data8 {export *[const]:1 data8;}
+u16: data16 is data16 {export *[const]:2 data16;}
+dir8: [u8] is u8 {tmp:2 = zext(u8); export *[DATA]:1 tmp;}
+dir16: [u8] is u8 {export *[DATA]:2 u8;}
+ind8: [Ra+offs] is Ra & offs {tmp=Ra+offs; export *[DATA]:1 tmp;}
+ind16: [Ra+offs] is Ra & offs {tmp=Ra+offs; export *[DATA]:2 tmp;}
+
+rel0: rel is data8 [rel=inst_next+data8;] {export *[CODE]:1 rel;}
+rel1: rel is data8 [rel=inst_next+data8+0x100;] {export *[CODE]:1 rel;}
+rel2: rel is data8 [rel=inst_next+data8-0x200;] {export *[CODE]:1 rel;}
+rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
+
+# 0x00-0x0F
+:MOV Rw,ind16 is op_37=0b00000 & Rw; ind16 {Rw=ind16; ZF=Rw==0;}
+:MOV Rw,dir16 is op_37=0b00001 & Rw; dir16 {Rw=dir16; ZF=Rw==0;}
+
+# 0x10-0x1F
+:MOV ind16,Rw is op_37=0b00010 & Rw; ind16 {ind16=Rw;}
+:MOV dir16,Rw is op_37=0b00011 & Rw; dir16 {dir16=Rw;}
+
+# 0x20-0x27
+:MOV Rw,u16 is op_37=0b00100 & Rw; u16 {Rw=u16;}
+
+# 0x28-0x2F
+:POP Rw is op_37=0b00101 & Rw {pop16(Rw);}
+
+# 0x30-0x37
+:MOV Rw,0 is op_37=0b00110 & Rw {Rw=0;}
+
+# 0x38-0x3F
+:PUSH Rw is op_37=0b00111 & Rw {push16(Rw);}
+
+# 0x40-0x4F
+:MOV Rb,ind8 is op_47=0b0100 & Rb; ind8 {Rb=ind8; ZF=Rb==0;}
+
+# 0x50-0x5F
+:MOV ind8,Rb is op_47=0b0101 & Rb; ind8 {ind8=Rb;}
+
+# 0x60-0x6F
+:MOV Rb,u8 is op_47=0b0110 & Rb; u8 {Rb = u8;}
+
+# 0x70-0x7F
+:MOV Rb,0 is op_47=0b0111 & Rb {Rb = 0;}
+
+# 0x80-0x9F JMPs/CALLs
+:JB rel0 is op=0x80; rel0 {if (CF!=0) goto rel0;}
+:JB rel1 is op=0x81; rel1 {if (CF!=0) goto rel1;}
+:JB rel2 is op=0x82; rel2 {if (CF!=0) goto rel2;}
+:JB rel3 is op=0x83; rel3 {if (CF!=0) goto rel3;}
+
+:JNE rel0 is op=0x84; rel0 {if (ZF==0) goto rel0;}
+:JNE rel1 is op=0x85; rel1 {if (ZF==0) goto rel1;}
+:JNE rel2 is op=0x86; rel2 {if (ZF==0) goto rel2;}
+:JNE rel3 is op=0x87; rel3 {if (ZF==0) goto rel3;}
+
+:JAE rel0 is op=0x88; rel0 {if (CF==0) goto rel0;}
+:JAE rel1 is op=0x89; rel1 {if (CF==0) goto rel1;}
+:JAE rel2 is op=0x8A; rel2 {if (CF==0) goto rel2;}
+:JAE rel3 is op=0x8B; rel3 {if (CF==0) goto rel3;}
+
+:JA rel0 is op=0x8C; rel0 {if (CF==0&&ZF==0) goto rel0;}
+:JA rel1 is op=0x8D; rel1 {if (CF==0&&ZF==0) goto rel1;}
+:JA rel2 is op=0x8E; rel2 {if (CF==0&&ZF==0) goto rel2;}
+:JA rel3 is op=0x8F; rel3 {if (CF==0&&ZF==0) goto rel3;}
+
+:JE rel0 is op=0x90; rel0 {if (ZF!=0) goto rel0;}
+:JE rel1 is op=0x91; rel1 {if (ZF!=0) goto rel1;}
+:JE rel2 is op=0x92; rel2 {if (ZF!=0) goto rel2;}
+:JE rel3 is op=0x93; rel3 {if (ZF!=0) goto rel3;}
+
+:JBE rel0 is op=0x94; rel0 {if (CF!=0||ZF!=0) goto rel0;}
+:JBE rel1 is op=0x95; rel1 {if (CF!=0||ZF!=0) goto rel1;}
+:JBE rel2 is op=0x96; rel2 {if (CF!=0||ZF!=0) goto rel2;}
+:JBE rel3 is op=0x97; rel3 {if (CF!=0||ZF!=0) goto rel3;}
+
+:JMP rel0 is op=0x98; rel0 {goto rel0;}
+:JMP rel3 is op=0x99; rel3 {goto rel3;}
+
+:RET R7 is op=0x9a & R7 {return [R7];}
+:JMP u16 is op=0x9b; u16 {tmp:2=u16; goto [tmp];}
+:MACRO u8 is op=0x9c; u8 {tmp:1=u8; Macro(tmp);}
+:XCALL u16 is op=0x9d; u16 {tmp:2=u16; push16(&:2 inst_next); call [tmp];} # not sure if it uses stack or something else
+:CALL u16+R0,R7 is op=0x9e & R7; u16 & R0 {tmp:2=u16+R0; R7 = &:2 inst_next; call [tmp];}
+:CALL u16,R7 is op=0x9f & R7; u16 {tmp:2=u16; R7 = &:2 inst_next; call [tmp];}
+
+# 0xA0-0xAF
+:POP Rb1 is op=0xa0; Rb1 {pop8(Rb1);}
+:MOV Rb1,dir8 is op=0xa1; Rb1; dir8 {Rb1=dir8; ZF=Rb1==0;}
+:PUSH Rb2 is op=0xa2; Rb2 {push8(Rb2);}
+:MOV dir8,Rb2 is op=0xa3; dir8; Rb2 {dir8=Rb2;}
+:AND.B dir8,u8 is op=0xa4; dir8; u8 {dir8=dir8&u8;}
+:ADD SP,u8 is op=0xa5 & SP; u8 {SP=SP+zext(u8);}
+:MOV Rb1,Rb2 is op=0xa6; Rb1 & Rb2 {Rb1=Rb2; ZF=Rb1==0;}
+:SUB SP,u8 is op=0xa7 & SP; u8 {SP=SP-zext(u8);}
+:ADD SP,8 is op=0xa8 & SP {SP=SP+8;}
+:POP R0L is op=0xa9 & R0L {pop8(R0L);}
+:ADD SP,2 is op=0xaa & SP {SP=SP+2;}
+:ADD SP,3 is op=0xab & SP {SP=SP+3;}
+:POP R1,R2 is op=0xac & R1 & R2 {pop16(R1); pop16(R2);}
+:ADD SP,5 is op=0xad & SP {SP=SP+5;}
+:ADD SP,6 is op=0xae & SP {SP=SP+6;}
+:ADD SP,7 is op=0xaf & SP {SP=SP+7;}
+
+# 0xB0 = op Rb,Rb
+:AND Rb1,Rb is op_47=0b1011 & Rb; fn=0x0 & Rb1 {Rb1=Rb1&Rb; ZF=Rb1==0;}
+:OR Rb1,Rb is op_47=0b1011 & Rb; fn=0x1 & Rb1 {Rb1=Rb1|Rb; ZF=Rb1==0;}
+:ADD Rb1,Rb is op_47=0b1011 & Rb; fn=0x2 & Rb1 {CF=carry(Rb1,Rb); Rb1=Rb1+Rb; ZF=Rb1==0;}
+:ADDC Rb1,Rb is op_47=0b1011 & Rb; fn=0x3 & Rb1 {result:1=Rb1+Rb+zext(CF); CF=carry(Rb1,Rb+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:XOR Rb1,Rb is op_47=0b1011 & Rb; fn=0x4 & Rb1 {Rb1=Rb1^Rb; ZF=Rb1==0;}
+:CMP Rb1,Rb is op_47=0b1011 & Rb; fn=0x5 & Rb1 {ZF=Rb1==Rb; CF=Rb1<Rb;}
+:SHL Rb1,Rb is op_47=0b1011 & Rb; fn=0x6 & Rb1 {CF=Rb s< 0; Rb1=Rb<<1; ZF=Rb1==0;}
+:SHLC Rb1,Rb is op_47=0b1011 & Rb; fn=0x7 & Rb1 {result:1=(Rb<<1)|CF; CF=Rb s< 0; Rb1=result; ZF=Rb1==0;}
+:DEC Rb1,Rb is op_47=0b1011 & Rb; fn=0x8 & Rb1 {CF=Rb!=0; Rb1=Rb-1; ZF=Rb1==0;}
+:INC Rb1,Rb is op_47=0b1011 & Rb; fn=0x9 & Rb1 {Rb1=Rb+1; ZF=Rb1==0; CF=Rb1==0;}
+:NOT Rb1,Rb is op_47=0b1011 & Rb; fn=0xa & Rb1 {Rb1=~Rb; ZF=Rb1==0;}
+:SHR Rb1,Rb is op_47=0b1011 & Rb; fn=0xb & Rb1 {CF=Rb&1; Rb1=Rb>>1; ZF=Rb1==0;}
+:SUBB Rb1,Rb,0 is op_47=0b1011 & Rb; fn=0xc & Rb1 {tmp:1=CF; CF=Rb<tmp; Rb1=Rb-tmp; ZF=Rb1==0;}
+:ADDC Rb1,Rb,0 is op_47=0b1011 & Rb; fn=0xd & Rb1 {tmp:1=CF; CF=carry(Rb,tmp); Rb1=Rb+tmp; ZF=Rb1==0;}
+:SHRC Rb1,Rb is op_47=0b1011 & Rb; fn=0xe & Rb1 {result:1=(Rb>>1)|(CF<<7); CF=Rb&1; Rb1=result; ZF=Rb1==0;}
+:NEGC Rb1,Rb is op_47=0b1011 & Rb; fn=0xf & Rb1 {tmp:1=Rb+zext(CF); CF=0<tmp; Rb1=0-tmp; ZF=Rb1==0;}
+
+# 0xC0-0xC7
+:AND Rb_half,u8 is op_37=0b11000 & Rb_half; u8 {Rb_half=Rb_half&u8; ZF=Rb_half==0;}
+
+# 0xC7-0xC8
+:AND R0L,Rb_half,u8 is op_37=0b11001 & R0L & Rb_half; u8 {R0L=Rb_half&u8; ZF=R0L==0;}
+
+# 0xD0-0xD7
+:CMP Rb_half,u8 is op_37=0b11010 & Rb_half; u8 {ZF=Rb_half==u8; CF=Rb_half<u8; R0L=Rb_half-u8;}
+
+# 0xD8-0xDF
+:CMPS Rb_half,u8 is op_37=0b11011 & Rb_half; u8 {ZF=Rb_half==u8; CF=Rb_half s< u8; R0L=Rb_half-u8;}
+
+# 0xE0 = op Rb,[Ra+offs]
+:AND Rb1,ind8 is op=0xe0; fn=0x0 & Rb1; ind8 {Rb1=Rb1&ind8; ZF=Rb1==0;}
+:OR Rb1,ind8 is op=0xe0; fn=0x1 & Rb1; ind8 {Rb1=Rb1|ind8; ZF=Rb1==0;}
+:ADD Rb1,ind8 is op=0xe0; fn=0x2 & Rb1; ind8 {CF=carry(Rb1,ind8); Rb1=Rb1+ind8; ZF=Rb1==0;}
+:ADDC Rb1,ind8 is op=0xe0; fn=0x3 & Rb1; ind8 {result:1=Rb1+ind8+zext(CF); CF=carry(Rb1,ind8+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:XOR Rb1,ind8 is op=0xe0; fn=0x4 & Rb1; ind8 {Rb1=Rb1^ind8; ZF=Rb1==0;}
+:CMP Rb1,ind8 is op=0xe0; fn=0x5 & Rb1; ind8 {ZF=Rb1==ind8; CF=Rb1<ind8;}
+:SHL Rb1,ind8 is op=0xe0; fn=0x6 & Rb1; ind8 {CF=ind8 s< 0; Rb1=ind8<<1; ZF=Rb1==0;}
+:DEC Rb1,ind8 is op=0xe0; fn=0x8 & Rb1; ind8 {CF=ind8!=0; Rb1=ind8-1; ZF=Rb1==0;}
+:INC Rb1,ind8 is op=0xe0; fn=0x9 & Rb1; ind8 {Rb1=ind8+1; ZF=Rb1==0; CF=Rb1==0;}
+:NOT Rb1,ind8 is op=0xe0; fn=0xa & Rb1; ind8 {Rb1=~ind8; ZF=Rb1==0;}
+:SHR Rb1,ind8 is op=0xe0; fn=0xb & Rb1; ind8 {CF=ind8&1; Rb1=ind8>>1; ZF=Rb1==0;}
+:SUB Rb1,ind8 is op=0xe0; fn=0xc & Rb1; ind8 {CF=Rb1<ind8; Rb1=Rb1-ind8; ZF=Rb1==0;}
+:SUBB Rb1,ind8 is op=0xe0; fn=0xd & Rb1; ind8 {tmp:1=ind8+zext(CF); CF=Rb1<tmp; Rb1=Rb1-tmp; ZF=Rb1==0;}
+:CMPS Rb1,ind8 is op=0xe0; fn=0xe & Rb1; ind8 {ZF=Rb1==ind8; CF=Rb1 s< ind8;}
+
+# 0xE4 = op Rb,[addr]
+:AND Rb1,dir8 is op=0xe4; fn=0x0 & Rb1; dir8 {Rb1=Rb1&dir8; ZF=Rb1==0;}
+:OR Rb1,dir8 is op=0xe4; fn=0x1 & Rb1; dir8 {Rb1=Rb1|dir8; ZF=Rb1==0;}
+:ADD Rb1,dir8 is op=0xe4; fn=0x2 & Rb1; dir8 {CF=carry(Rb1,dir8); Rb1=Rb1+dir8; ZF=Rb1==0;}
+:ADDC Rb1,dir8 is op=0xe4; fn=0x3 & Rb1; dir8 {result:1=Rb1+dir8+zext(CF); CF=carry(Rb1,dir8+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:XOR Rb1,dir8 is op=0xe4; fn=0x4 & Rb1; dir8 {Rb1=Rb1^dir8; ZF=Rb1==0;}
+:CMP Rb1,dir8 is op=0xe4; fn=0x5 & Rb1; dir8 {ZF=Rb1==dir8; CF=Rb1<dir8;}
+:SHL Rb1,dir8 is op=0xe4; fn=0x6 & Rb1; dir8 {CF=dir8 s< 0; Rb1=dir8<<1; ZF=Rb1==0;}
+:DEC Rb1,dir8 is op=0xe4; fn=0x8 & Rb1; dir8 {CF=dir8!=0; Rb1=dir8-1; ZF=Rb1==0;}
+:INC Rb1,dir8 is op=0xe4; fn=0x9 & Rb1; dir8 {Rb1=dir8+1; ZF=Rb1==0; CF=Rb1==0;}
+:NOT Rb1,dir8 is op=0xe4; fn=0xa & Rb1; dir8 {Rb1=~dir8; ZF=Rb1==0;}
+:SHR Rb1,dir8 is op=0xe4; fn=0xb & Rb1; dir8 {CF=dir8&1; Rb1=dir8>>1; ZF=Rb1==0;}
+:SUB Rb1,dir8 is op=0xe4; fn=0xc & Rb1; dir8 {CF=Rb1<dir8; Rb1=Rb1-dir8; ZF=Rb1==0;}
+:SUBB Rb1,dir8 is op=0xe4; fn=0xd & Rb1; dir8 {tmp:1=dir8+zext(CF); CF=Rb1<tmp; Rb1=Rb1-tmp; ZF=Rb1==0;}
+:CMPS Rb1,dir8 is op=0xe4; fn=0xe & Rb1; dir8 {ZF=Rb1==dir8; CF=Rb1 s< dir8;}
+
+# 0xE5 = op Rb,Rb,Rb
+:AND Rb1,Rb3,Rb4 is op=0xe5; fn=0x0 & Rb1; Rb3 & Rb4 {Rb1=Rb3&Rb4; ZF=Rb1==0;}
+:OR Rb1,Rb3,Rb4 is op=0xe5; fn=0x1 & Rb1; Rb3 & Rb4 {Rb1=Rb3|Rb4; ZF=Rb1==0;}
+:ADD Rb1,Rb3,Rb4 is op=0xe5; fn=0x2 & Rb1; Rb3 & Rb4 {CF=carry(Rb3,Rb4); Rb1=Rb3+Rb4; ZF=Rb1==0;}
+:ADDC Rb1,Rb3,Rb4 is op=0xe5; fn=0x3 & Rb1; Rb3 & Rb4 {result:1=Rb3+Rb4+zext(CF); CF=carry(Rb3,Rb4+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:XOR Rb1,Rb3,Rb4 is op=0xe5; fn=0x4 & Rb1; Rb3 & Rb4 {Rb1=Rb3^Rb4; ZF=Rb1==0;}
+:SAR Rb1,Rb4 is op=0xe5; fn=0x7 & Rb1; Rb3 & Rb4 {CF=Rb4&1; Rb1=Rb4 s>> 1; ZF=Rb1==0;}
+:NEG Rb1,Rb4 is op=0xe5; fn=0xb & Rb1; Rb3 & Rb4 {CF=0<Rb4; Rb1=0-Rb4; ZF=Rb1==0;}
+:SUB Rb1,Rb3,Rb4 is op=0xe5; fn=0xc & Rb1; Rb3 & Rb4 {CF=Rb3<Rb4; Rb1=Rb3-Rb4; ZF=Rb1==0;}
+:SUBB Rb1,Rb3,Rb4 is op=0xe5; fn=0xd & Rb1; Rb3 & Rb4 {tmp:1=Rb4+zext(CF); CF=Rb3<tmp; Rb1=Rb3-tmp; ZF=Rb1==0;}
+:CMPS Rb1,Rb4 is op=0xe5; fn=0xe & Rb1; Rb3 & Rb4 {ZF=Rb1==Rb4; CF=Rb1 s< Rb4;}
+:RSUB Rb1,Rb3,Rb4 is op=0xe5; fn=0xf & Rb1; Rb3 & Rb4 {CF=Rb4<Rb3; Rb1=Rb4-Rb3; ZF=Rb1==0;} # does not make sense - same as SUB Rb1,Rb3,Rb4 with swapped operands
+
+# 0xE6 = op Rb,#
+:AND Rb1,u8 is op=0xe6; fn=0x0 & Rb1; u8 {Rb1=Rb1&u8; ZF=Rb1==0;}
+:OR Rb1,u8 is op=0xe6; fn=0x1 & Rb1; u8 {Rb1=Rb1|u8; ZF=Rb1==0;}
+:ADD Rb1,u8 is op=0xe6; fn=0x2 & Rb1; u8 {CF=carry(Rb1,u8); Rb1=Rb1+u8; ZF=Rb1==0;}
+:ADDC Rb1,u8 is op=0xe6; fn=0x3 & Rb1; u8 {result:1=Rb1+u8+zext(CF); CF=carry(Rb1,u8+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:XOR Rb1,u8 is op=0xe6; fn=0x4 & Rb1; u8 {Rb1=Rb1^u8; ZF=Rb1==0;}
+:CMP Rb1,u8 is op=0xe6; fn=0x5 & Rb1; u8 {ZF=Rb1==0; CF=Rb1<u8;}
+:AND R0L,Rb1,u8 is op=0xe6; fn=0xa & Rb1 & R0L; u8 {R0L=Rb1&u8; ZF=R0L==0;}
+:SHR Rb1,u8 is op=0xe6; fn=0xb & Rb1; u8 {CF=u8&1; Rb1=u8>>1; ZF=Rb1==0;}
+:SUB Rb1,u8 is op=0xe6; fn=0xc & Rb1; u8 {CF=Rb1<u8; Rb1=Rb1-u8; ZF=Rb1==0;}
+:SUBB Rb1,u8 is op=0xe6; fn=0xd & Rb1; u8 {tmp:1=u8+zext(CF); CF=Rb1<tmp; Rb1=Rb1-tmp; ZF=Rb1==0;}
+:CMPS Rb1,u8 is op=0xe6; fn=0xe & Rb1; u8 {ZF=Rb1==u8; CF=Rb1 s< u8;}
+:RSUB Rb1,u8 is op=0xe6; fn=0xf & Rb1; u8 {CF=u8<Rb1; Rb1=u8-Rb1; ZF=Rb1==0;}
+
+# 0xE7 = MUL
+:MUL Rw1,Rb2,Rb4 is op=0xe7; fn1=0 & Rb2 & Rw1; Rb4 {Rw1=zext(Rb2)*zext(Rb4); ZF=Rw1==0;}
+:MUL R0,Rb2,u8 is op=0xe7 & R0; fn1=1 & Rb2; u8 {a:2=zext(Rb2); b=zext(u8); R0=a*b; ZF=R0==0;}
+
+# 0xE8-0xEF = op Rw,Rw
+:AND Rw1,Rw is op_37=0b11101 & Rw; fn=0x0 & fn1=0 & Rw1 {Rw1=Rw1&Rw; ZF=Rw1==0;}
+:MOVZ Rw1,Rw is op_37=0b11101 & Rw; fn=0x0 & fn1=1 & Rw1 {Rw1=Rw&0xff; ZF=Rw1==0;}
+:OR Rw1,Rw is op_37=0b11101 & Rw; fn=0x1 & Rw1 {Rw1=Rw1|Rw; ZF=Rw1==0;}
+:ADD Rw1,Rw is op_37=0b11101 & Rw; fn=0x2 & Rw1 {CF=carry(Rw1,Rw); Rw1=Rw1+Rw; ZF=Rw1==0;}
+:ADDC Rw1,Rw is op_37=0b11101 & Rw; fn=0x3 & Rw1 {result:2=Rw1+Rw+zext(CF); CF=carry(Rw1,Rw+zext(CF)); Rw1=result; ZF=Rw1==0;}
+:XOR Rw1,Rw is op_37=0b11101 & Rw; fn=0x4 & Rw1 {Rw1=Rw1^Rw; ZF=Rw1==0;}
+:CMP Rw1,Rw is op_37=0b11101 & Rw; fn=0x5 & Rw1 {ZF=Rw1==Rw; CF=Rw1<Rw;}
+:SHL Rw1,Rw is op_37=0b11101 & Rw; fn=0x6 & Rw1 {CF=Rw s< 0; Rw1=Rw<<1; ZF=Rw1==0;}
+:DEC Rw1,Rw is op_37=0b11101 & Rw; fn=0x8 & Rw1 {CF=Rw!=0; Rw1=Rw-1; ZF=Rw1==0;}
+:INC Rw1,Rw is op_37=0b11101 & Rw; fn=0x9 & Rw1 {Rw1=Rw+1; ZF=Rw1==0; CF=Rw1==0;}
+:NOT Rw1,Rw is op_37=0b11101 & Rw; fn=0xa & Rw1 {Rw1=~Rw; ZF=Rw1==0;}
+:NEG Rw1,Rw is op_37=0b11101 & Rw; fn=0xb & Rw1 {CF=0<Rw; Rw1=0-Rw; ZF=Rw1==0;}
+:SUB Rw1,Rw is op_37=0b11101 & Rw; fn=0xc & Rw1 {CF=Rw1<Rw; Rw1=Rw1-Rw; ZF=Rw1==0;}
+:SUBB Rw1,Rw is op_37=0b11101 & Rw; fn=0xd & Rw1 {tmp:2=Rw+zext(CF); CF=Rw1<tmp; Rw1=Rw1-tmp; ZF=Rw1==0;}
+:CMPS Rw1,Rw is op_37=0b11101 & Rw; fn=0xe & Rw1 {ZF=Rw1==Rw; CF=Rw1 s< Rw;}
+:NEGC Rw1,Rw is op_37=0b11101 & Rw; fn=0xf & Rw1 {tmp:2=Rw+zext(CF); CF=0<tmp; Rw1=0-tmp; ZF=Rw1==0;}
+
+# 0xF0-0xF3 AND/OR [Ra+#/#],R0L
+:AND ind8,R0L is op=0xf0 & R0L; ind8 {ind8=ind8&R0L; ZF=ind8==0;}
+:OR ind8,R0L is op=0xf1 & R0L; ind8 {ind8=ind8|R0L; ZF=ind8==0;}
+:AND dir8,R0L is op=0xf2 & R0L; dir8 {dir8=dir8&R0L; ZF=dir8==0;}
+:OR dir8,R0L is op=0xf3 & R0L; dir8 {dir8=dir8|R0L; ZF=dir8==0;}
+
+# 0xF4 = op Rw,[Ra+offs]
+:AND Rw1,ind16 is op=0xf4; fn=0x0 & Rw1; ind16 {Rw1=Rw1&ind16; ZF=Rw1==0;}
+:OR Rw1,ind16 is op=0xf4; fn=0x1 & Rw1; ind16 {Rw1=Rw1|ind16; ZF=Rw1==0;}
+:ADD Rw1,ind16 is op=0xf4; fn=0x2 & Rw1; ind16 {CF=carry(Rw1,ind16); Rw1=Rw1+ind16; ZF=Rw1==0;}
+:ADDC Rw1,ind16 is op=0xf4; fn=0x3 & Rw1; ind16 {result:2=Rw1+ind16+zext(CF); CF=carry(Rw1,ind16+zext(CF)); Rw1=result; ZF=Rw1==0;}
+:XOR Rw1,ind16 is op=0xf4; fn=0x4 & Rw1; ind16 {Rw1=Rw1^ind16; ZF=Rw1==0;}
+:CMP Rw1,ind16 is op=0xf4; fn=0x5 & Rw1; ind16 {ZF=Rw1==ind16; CF=Rw1<ind16;}
+:SHL Rw1,ind16 is op=0xf4; fn=0x6 & Rw1; ind16 {CF=ind16 s< 0; Rw1=ind16<<1; ZF=Rw1==0;}
+:DEC Rw1,ind16 is op=0xf4; fn=0x8 & Rw1; ind16 {CF=ind16!=0; Rw1=ind16-1; ZF=Rw1==0;}
+:INC Rw1,ind16 is op=0xf4; fn=0x9 & Rw1; ind16 {Rw1=ind16+1; ZF=Rw1==0; CF=Rw1==0;}
+:NOT Rw1,ind16 is op=0xf4; fn=0xa & Rw1; ind16 {Rw1=~ind16; ZF=Rw1==0;}
+:NEG Rw1,ind16 is op=0xf4; fn=0xb & Rw1; ind16 {CF=0<ind16; Rw1=0-ind16; ZF=Rw1==0;}
+:SUB Rw1,ind16 is op=0xf4; fn=0xc & Rw1; ind16 {CF=Rw1<ind16; Rw1=Rw1-ind16; ZF=Rw1==0;}
+:SUBB Rw1,ind16 is op=0xf4; fn=0xd & Rw1; ind16 {tmp:2=ind16+zext(CF); CF=Rw1<tmp; Rw1=Rw1-tmp; ZF=Rw1==0;}
+:CMPS Rw1,ind16 is op=0xf4; fn=0xe & Rw1; ind16 {ZF=Rw1==ind16; CF=Rw1 s< ind16;}
+:NEGC Rw1,ind16 is op=0xf4; fn=0xf & Rw1; ind16 {tmp:2=ind16+zext(CF); CF=0<tmp; Rw1=0-tmp; ZF=Rw1==0;}
+
+# 0xF5 = op Rw,[addr]
+:AND Rw1,dir16 is op=0xf5; fn=0x0 & Rw1; dir16 {Rw1=Rw1&dir16; ZF=Rw1==0;}
+:OR Rw1,dir16 is op=0xf5; fn=0x1 & Rw1; dir16 {Rw1=Rw1|dir16; ZF=Rw1==0;}
+:ADD Rw1,dir16 is op=0xf5; fn=0x2 & Rw1; dir16 {CF=carry(Rw1,dir16); Rw1=Rw1+dir16; ZF=Rw1==0;}
+:ADDC Rw1,dir16 is op=0xf5; fn=0x3 & Rw1; dir16 {result:2=Rw1+dir16+zext(CF); CF=carry(Rw1,dir16+zext(CF)); Rw1=result; ZF=Rw1==0;}
+:XOR Rw1,dir16 is op=0xf5; fn=0x4 & Rw1; dir16 {Rw1=Rw1^dir16; ZF=Rw1==0;}
+:CMP Rw1,dir16 is op=0xf5; fn=0x5 & Rw1; dir16 {ZF=Rw1==dir16; CF=Rw1<dir16;}
+:SHL Rw1,dir16 is op=0xf5; fn=0x6 & Rw1; dir16 {CF=dir16 s< 0; Rw1=dir16<<1; ZF=Rw1==0;}
+:DEC Rw1,dir16 is op=0xf5; fn=0x8 & Rw1; dir16 {CF=dir16!=0; Rw1=dir16-1; ZF=Rw1==0;}
+:INC Rw1,dir16 is op=0xf5; fn=0x9 & Rw1; dir16 {Rw1=dir16+1; ZF=Rw1==0; CF=Rw1==0;}
+:NOT Rw1,dir16 is op=0xf5; fn=0xa & Rw1; dir16 {Rw1=~dir16; ZF=Rw1==0;}
+:NEG Rw1,dir16 is op=0xf5; fn=0xb & Rw1; dir16 {CF=0<dir16; Rw1=0-dir16; ZF=Rw1==0;}
+:SUB Rw1,dir16 is op=0xf5; fn=0xc & Rw1; dir16 {CF=Rw1<dir16; Rw1=Rw1-dir16; ZF=Rw1==0;}
+:SUBB Rw1,dir16 is op=0xf5; fn=0xd & Rw1; dir16 {tmp:2=dir16+zext(CF); CF=Rw1<tmp; Rw1=Rw1-tmp; ZF=Rw1==0;}
+:CMPS Rw1,dir16 is op=0xf5; fn=0xe & Rw1; dir16 {ZF=Rw1==dir16; CF=Rw1 s< dir16;}
+:NEGC Rw1,dir16 is op=0xf5; fn=0xf & Rw1; dir16 {tmp:2=dir16+zext(CF); CF=0<tmp; Rw1=0-tmp; ZF=Rw1==0;}
+
+# 0xF6-0xFB
+:MOV Rw1_all,Rw2_all is op=0xf6; Rw1_all & Rw2_all {Rw1_all=Rw2_all;}
+:PUSH u16 is op=0xf7; u16 {tmp:2=u16; push16(tmp);}
+:CMP.W ind16,0 is op=0xf8; ind16 {ZF=ind16==0;}
+:CMP Rw2,0 is op=0xf9; Rw2 {ZF=Rw2==0;}
+:CMP.W dir16,0 is op=0xfa; dir16 {ZF=dir16==0;}
+:CMP R1,0 is op=0xfb & R1 {ZF=R1==0;}
+
+# 0xFC
+:MOV R7,FLAGS is op=0xfc & R7 & FLAGS; fn=0x2 {R7=FLAGS;}
+:MOV FLAGS,R7 is op=0xfc & R7 & FLAGS; fn=0x0 {FLAGS=R7;}
+:DINT is op=0xfc; fn=0x6 {IE=0;}
+:EINT is op=0xfc; fn=0x5 {IE=1;}
+:UNK.FC u8 is op=0xfc; u8 {tmp:1=u8; UnkFC(tmp);}
+
+# 0xFD-0xFE
+:XRET is op=0xfd {tmp:2=0; pop16(tmp); return [tmp];} # not sure if it uses stack or something else
+:IRET is op=0xfe {tmp:2=0; pop16(tmp); return [tmp];} # something missing
+
+:UNK op is op {Unk();}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<processor_spec>
+	<programcounter register="PC"/>
+	<default_symbols>
+		<symbol name="START" address="0x0" entry="true" type="code_ptr"/>
+		<symbol name="INT1" address="0x2" type="code_ptr"/>
+		<symbol name="INT2" address="0x4" type="code_ptr"/>
+		<symbol name="INT3" address="0x6" type="code_ptr"/>
+		<symbol name="INT4" address="0x8" type="code_ptr"/>
+	</default_symbols>
+	<default_memory_blocks>
+		<memory_block name="ram" start_address="DATA:0" length="0x4000" initialized="false"/>
+		<memory_block name="sfr" start_address="DATA:0x8000" length="0x4000" initialized="false"/>
+	</default_memory_blocks>
+</processor_spec>
