@@ -2,7 +2,7 @@ This Ghidra processor module is based on reverse-engineering the instruction set
 I do not have any specs for the processor. Some instructions may be decoded incorrectly.
 There's still a lot of work to be done, but it already produces meaningful decompiled code.
 
-Other BQ chips may use different architectures, like the 22-bit CoolRisc816. For details on these, see:
+Other BQ chips may use different architectures, like CoolRisc816 in BQ20Z80 with its 22-bit instructions. For details on these, see:
 
 https://media.blackhat.com/bh-us-11/Miller/BH_US_11_Miller_Battery_Firmware_Public_WP.pdf  
 https://media.blackhat.com/bh-us-11/Miller/BH_US_11_Miller_Battery_Firmware_Public_Slides.pdf  
