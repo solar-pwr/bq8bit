@@ -78,6 +78,7 @@ attach variables Ra [R4 R5 R6 SP];
 define pcodeop Macro;
 define pcodeop Unk;
 define pcodeop UnkFC;
+define pcodeop memcpy;
 
 macro push8(x) {SP=SP-1; tmp:2=SP; *[DATA]:1 tmp = x;}
 macro push16(x) {SP=SP-2; tmp:2=SP; *[DATA]:2 tmp = 0; *[DATA]:2 tmp = x;}
@@ -268,7 +269,7 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :ADD Rb1,u8 is op=0xe6; fn=0x2 & Rb1; u8 {CF=carry(Rb1,u8); Rb1=Rb1+u8; ZF=Rb1==0;}
 :ADDC Rb1,u8 is op=0xe6; fn=0x3 & Rb1; u8 {result:1=Rb1+u8+zext(CF); CF=carry(Rb1,u8+zext(CF)); Rb1=result; ZF=Rb1==0;}
 :XOR Rb1,u8 is op=0xe6; fn=0x4 & Rb1; u8 {Rb1=Rb1^u8; ZF=Rb1==0;}
-:CMP Rb1,u8 is op=0xe6; fn=0x5 & Rb1; u8 {ZF=Rb1==0; CF=Rb1<u8;}
+:CMP Rb1,u8 is op=0xe6; fn=0x5 & Rb1; u8 {ZF=Rb1==u8; CF=Rb1<u8;}
 :AND R0L,Rb1,u8 is op=0xe6; fn=0xa & Rb1 & R0L; u8 {R0L=Rb1&u8; ZF=R0L==0;}
 :SHR Rb1,u8 is op=0xe6; fn=0xb & Rb1; u8 {CF=u8&1; Rb1=u8>>1; ZF=Rb1==0;}
 :SUB Rb1,u8 is op=0xe6; fn=0xc & Rb1; u8 {CF=Rb1<u8; Rb1=Rb1-u8; ZF=Rb1==0;}
@@ -358,3 +359,6 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :IRET is op=0xfe {tmp:2=0; pop16(tmp); return [tmp];} # something missing
 
 :UNK op is op {Unk();}
+
+# MACRO operations
+:MEMCPY R1,R2,R3 is op=0x9c; data8=0x3f & R1 & R2 & R3 {memcpy(R1,R2,R3);}
