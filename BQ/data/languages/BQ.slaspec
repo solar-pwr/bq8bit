@@ -192,18 +192,18 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :AND Rb1,Rb is op_47=0b1011 & Rb; fn=0x0 & Rb1 {Rb1=Rb1&Rb; ZF=Rb1==0;}
 :OR Rb1,Rb is op_47=0b1011 & Rb; fn=0x1 & Rb1 {Rb1=Rb1|Rb; ZF=Rb1==0;}
 :ADD Rb1,Rb is op_47=0b1011 & Rb; fn=0x2 & Rb1 {CF=carry(Rb1,Rb); Rb1=Rb1+Rb; ZF=Rb1==0;}
-:ADDC Rb1,Rb is op_47=0b1011 & Rb; fn=0x3 & Rb1 {result:1=Rb1+Rb+zext(CF); CF=carry(Rb1,Rb+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:ADDC Rb1,Rb is op_47=0b1011 & Rb; fn=0x3 & Rb1 {tmp:1=Rb1+Rb+zext(CF); CF=carry(Rb1,Rb+zext(CF)); Rb1=tmp; ZF=Rb1==0;}
 :XOR Rb1,Rb is op_47=0b1011 & Rb; fn=0x4 & Rb1 {Rb1=Rb1^Rb; ZF=Rb1==0;}
 :CMP Rb1,Rb is op_47=0b1011 & Rb; fn=0x5 & Rb1 {ZF=Rb1==Rb; CF=Rb1<Rb;}
 :SHL Rb1,Rb is op_47=0b1011 & Rb; fn=0x6 & Rb1 {CF=Rb s< 0; Rb1=Rb<<1; ZF=Rb1==0;}
-:SHLC Rb1,Rb is op_47=0b1011 & Rb; fn=0x7 & Rb1 {result:1=(Rb<<1)|CF; CF=Rb s< 0; Rb1=result; ZF=Rb1==0;}
+:SHLC Rb1,Rb is op_47=0b1011 & Rb; fn=0x7 & Rb1 {tmp:1=(Rb<<1)|zext(CF); CF=Rb s< 0; Rb1=tmp; ZF=Rb1==0;}
 :DEC Rb1,Rb is op_47=0b1011 & Rb; fn=0x8 & Rb1 {CF=Rb!=0; Rb1=Rb-1; ZF=Rb1==0;}
 :INC Rb1,Rb is op_47=0b1011 & Rb; fn=0x9 & Rb1 {Rb1=Rb+1; ZF=Rb1==0; CF=Rb1==0;}
 :NOT Rb1,Rb is op_47=0b1011 & Rb; fn=0xa & Rb1 {Rb1=~Rb; ZF=Rb1==0;}
 :SHR Rb1,Rb is op_47=0b1011 & Rb; fn=0xb & Rb1 {CF=Rb&1; Rb1=Rb>>1; ZF=Rb1==0;}
 :SUBB Rb1,Rb,0 is op_47=0b1011 & Rb; fn=0xc & Rb1 {tmp:1=CF; CF=Rb<tmp; Rb1=Rb-tmp; ZF=Rb1==0;}
 :ADDC Rb1,Rb,0 is op_47=0b1011 & Rb; fn=0xd & Rb1 {tmp:1=CF; CF=carry(Rb,tmp); Rb1=Rb+tmp; ZF=Rb1==0;}
-:SHRC Rb1,Rb is op_47=0b1011 & Rb; fn=0xe & Rb1 {result:1=(Rb>>1)|(CF<<7); CF=Rb&1; Rb1=result; ZF=Rb1==0;}
+:SHRC Rb1,Rb is op_47=0b1011 & Rb; fn=0xe & Rb1 {tmp:1=(Rb>>1)|(CF<<7); CF=Rb&1; Rb1=tmp; ZF=Rb1==0;}
 :NEGC Rb1,Rb is op_47=0b1011 & Rb; fn=0xf & Rb1 {tmp:1=Rb+zext(CF); CF=0<tmp; Rb1=0-tmp; ZF=Rb1==0;}
 
 # 0xC0-0xC7
@@ -222,10 +222,11 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :AND Rb1,ind8 is op=0xe0; fn=0x0 & Rb1; ind8 {Rb1=Rb1&ind8; ZF=Rb1==0;}
 :OR Rb1,ind8 is op=0xe0; fn=0x1 & Rb1; ind8 {Rb1=Rb1|ind8; ZF=Rb1==0;}
 :ADD Rb1,ind8 is op=0xe0; fn=0x2 & Rb1; ind8 {CF=carry(Rb1,ind8); Rb1=Rb1+ind8; ZF=Rb1==0;}
-:ADDC Rb1,ind8 is op=0xe0; fn=0x3 & Rb1; ind8 {result:1=Rb1+ind8+zext(CF); CF=carry(Rb1,ind8+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:ADDC Rb1,ind8 is op=0xe0; fn=0x3 & Rb1; ind8 {tmp:1=Rb1+ind8+zext(CF); CF=carry(Rb1,ind8+zext(CF)); Rb1=tmp; ZF=Rb1==0;}
 :XOR Rb1,ind8 is op=0xe0; fn=0x4 & Rb1; ind8 {Rb1=Rb1^ind8; ZF=Rb1==0;}
 :CMP Rb1,ind8 is op=0xe0; fn=0x5 & Rb1; ind8 {ZF=Rb1==ind8; CF=Rb1<ind8;}
 :SHL Rb1,ind8 is op=0xe0; fn=0x6 & Rb1; ind8 {CF=ind8 s< 0; Rb1=ind8<<1; ZF=Rb1==0;}
+:SHLC Rb1,ind8 is op=0xe0; fn=0x7 & Rb1; ind8 {tmp:1=(ind8<<1)|zext(CF); CF=ind8 s< 0; Rb1=tmp; ZF=Rb1==0;}
 :DEC Rb1,ind8 is op=0xe0; fn=0x8 & Rb1; ind8 {CF=ind8!=0; Rb1=ind8-1; ZF=Rb1==0;}
 :INC Rb1,ind8 is op=0xe0; fn=0x9 & Rb1; ind8 {Rb1=ind8+1; ZF=Rb1==0; CF=Rb1==0;}
 :NOT Rb1,ind8 is op=0xe0; fn=0xa & Rb1; ind8 {Rb1=~ind8; ZF=Rb1==0;}
@@ -238,10 +239,11 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :AND Rb1,dir8 is op=0xe4; fn=0x0 & Rb1; dir8 {Rb1=Rb1&dir8; ZF=Rb1==0;}
 :OR Rb1,dir8 is op=0xe4; fn=0x1 & Rb1; dir8 {Rb1=Rb1|dir8; ZF=Rb1==0;}
 :ADD Rb1,dir8 is op=0xe4; fn=0x2 & Rb1; dir8 {CF=carry(Rb1,dir8); Rb1=Rb1+dir8; ZF=Rb1==0;}
-:ADDC Rb1,dir8 is op=0xe4; fn=0x3 & Rb1; dir8 {result:1=Rb1+dir8+zext(CF); CF=carry(Rb1,dir8+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:ADDC Rb1,dir8 is op=0xe4; fn=0x3 & Rb1; dir8 {tmp:1=Rb1+dir8+zext(CF); CF=carry(Rb1,dir8+zext(CF)); Rb1=tmp; ZF=Rb1==0;}
 :XOR Rb1,dir8 is op=0xe4; fn=0x4 & Rb1; dir8 {Rb1=Rb1^dir8; ZF=Rb1==0;}
 :CMP Rb1,dir8 is op=0xe4; fn=0x5 & Rb1; dir8 {ZF=Rb1==dir8; CF=Rb1<dir8;}
 :SHL Rb1,dir8 is op=0xe4; fn=0x6 & Rb1; dir8 {CF=dir8 s< 0; Rb1=dir8<<1; ZF=Rb1==0;}
+:SHLC Rb1,dir8 is op=0xe4; fn=0x7 & Rb1; dir8 {tmp:1=(dir8<<1)|zext(CF); CF=dir8 s< 0; Rb1=tmp; ZF=Rb1==0;}
 :DEC Rb1,dir8 is op=0xe4; fn=0x8 & Rb1; dir8 {CF=dir8!=0; Rb1=dir8-1; ZF=Rb1==0;}
 :INC Rb1,dir8 is op=0xe4; fn=0x9 & Rb1; dir8 {Rb1=dir8+1; ZF=Rb1==0; CF=Rb1==0;}
 :NOT Rb1,dir8 is op=0xe4; fn=0xa & Rb1; dir8 {Rb1=~dir8; ZF=Rb1==0;}
@@ -254,7 +256,7 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :AND Rb1,Rb3,Rb4 is op=0xe5; fn=0x0 & Rb1; Rb3 & Rb4 {Rb1=Rb3&Rb4; ZF=Rb1==0;}
 :OR Rb1,Rb3,Rb4 is op=0xe5; fn=0x1 & Rb1; Rb3 & Rb4 {Rb1=Rb3|Rb4; ZF=Rb1==0;}
 :ADD Rb1,Rb3,Rb4 is op=0xe5; fn=0x2 & Rb1; Rb3 & Rb4 {CF=carry(Rb3,Rb4); Rb1=Rb3+Rb4; ZF=Rb1==0;}
-:ADDC Rb1,Rb3,Rb4 is op=0xe5; fn=0x3 & Rb1; Rb3 & Rb4 {result:1=Rb3+Rb4+zext(CF); CF=carry(Rb3,Rb4+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:ADDC Rb1,Rb3,Rb4 is op=0xe5; fn=0x3 & Rb1; Rb3 & Rb4 {tmp:1=Rb3+Rb4+zext(CF); CF=carry(Rb3,Rb4+zext(CF)); Rb1=tmp; ZF=Rb1==0;}
 :XOR Rb1,Rb3,Rb4 is op=0xe5; fn=0x4 & Rb1; Rb3 & Rb4 {Rb1=Rb3^Rb4; ZF=Rb1==0;}
 :SAR Rb1,Rb4 is op=0xe5; fn=0x7 & Rb1; Rb3 & Rb4 {CF=Rb4&1; Rb1=Rb4 s>> 1; ZF=Rb1==0;}
 :NEG Rb1,Rb4 is op=0xe5; fn=0xb & Rb1; Rb3 & Rb4 {CF=0<Rb4; Rb1=0-Rb4; ZF=Rb1==0;}
@@ -267,7 +269,7 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :AND Rb1,u8 is op=0xe6; fn=0x0 & Rb1; u8 {Rb1=Rb1&u8; ZF=Rb1==0;}
 :OR Rb1,u8 is op=0xe6; fn=0x1 & Rb1; u8 {Rb1=Rb1|u8; ZF=Rb1==0;}
 :ADD Rb1,u8 is op=0xe6; fn=0x2 & Rb1; u8 {CF=carry(Rb1,u8); Rb1=Rb1+u8; ZF=Rb1==0;}
-:ADDC Rb1,u8 is op=0xe6; fn=0x3 & Rb1; u8 {result:1=Rb1+u8+zext(CF); CF=carry(Rb1,u8+zext(CF)); Rb1=result; ZF=Rb1==0;}
+:ADDC Rb1,u8 is op=0xe6; fn=0x3 & Rb1; u8 {tmp:1=Rb1+u8+zext(CF); CF=carry(Rb1,u8+zext(CF)); Rb1=tmp; ZF=Rb1==0;}
 :XOR Rb1,u8 is op=0xe6; fn=0x4 & Rb1; u8 {Rb1=Rb1^u8; ZF=Rb1==0;}
 :CMP Rb1,u8 is op=0xe6; fn=0x5 & Rb1; u8 {ZF=Rb1==u8; CF=Rb1<u8;}
 :AND R0L,Rb1,u8 is op=0xe6; fn=0xa & Rb1 & R0L; u8 {R0L=Rb1&u8; ZF=R0L==0;}
@@ -286,10 +288,11 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :MOVZ Rw1,Rw is op_37=0b11101 & Rw; fn=0x0 & fn1=1 & Rw1 {Rw1=Rw&0xff; ZF=Rw1==0;}
 :OR Rw1,Rw is op_37=0b11101 & Rw; fn=0x1 & Rw1 {Rw1=Rw1|Rw; ZF=Rw1==0;}
 :ADD Rw1,Rw is op_37=0b11101 & Rw; fn=0x2 & Rw1 {CF=carry(Rw1,Rw); Rw1=Rw1+Rw; ZF=Rw1==0;}
-:ADDC Rw1,Rw is op_37=0b11101 & Rw; fn=0x3 & Rw1 {result:2=Rw1+Rw+zext(CF); CF=carry(Rw1,Rw+zext(CF)); Rw1=result; ZF=Rw1==0;}
+:ADDC Rw1,Rw is op_37=0b11101 & Rw; fn=0x3 & Rw1 {tmp:2=Rw1+Rw+zext(CF); CF=carry(Rw1,Rw+zext(CF)); Rw1=tmp; ZF=Rw1==0;}
 :XOR Rw1,Rw is op_37=0b11101 & Rw; fn=0x4 & Rw1 {Rw1=Rw1^Rw; ZF=Rw1==0;}
 :CMP Rw1,Rw is op_37=0b11101 & Rw; fn=0x5 & Rw1 {ZF=Rw1==Rw; CF=Rw1<Rw;}
 :SHL Rw1,Rw is op_37=0b11101 & Rw; fn=0x6 & Rw1 {CF=Rw s< 0; Rw1=Rw<<1; ZF=Rw1==0;}
+:SHLC Rw1,Rw is op_37=0b11101 & Rw; fn=0x7 & Rw1 {tmp:2=(Rw<<1)|zext(CF); CF=Rw s< 0; Rw1=tmp; ZF=Rw1==0;}
 :DEC Rw1,Rw is op_37=0b11101 & Rw; fn=0x8 & Rw1 {CF=Rw!=0; Rw1=Rw-1; ZF=Rw1==0;}
 :INC Rw1,Rw is op_37=0b11101 & Rw; fn=0x9 & Rw1 {Rw1=Rw+1; ZF=Rw1==0; CF=Rw1==0;}
 :NOT Rw1,Rw is op_37=0b11101 & Rw; fn=0xa & Rw1 {Rw1=~Rw; ZF=Rw1==0;}
@@ -309,10 +312,11 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :AND Rw1,ind16 is op=0xf4; fn=0x0 & Rw1; ind16 {Rw1=Rw1&ind16; ZF=Rw1==0;}
 :OR Rw1,ind16 is op=0xf4; fn=0x1 & Rw1; ind16 {Rw1=Rw1|ind16; ZF=Rw1==0;}
 :ADD Rw1,ind16 is op=0xf4; fn=0x2 & Rw1; ind16 {CF=carry(Rw1,ind16); Rw1=Rw1+ind16; ZF=Rw1==0;}
-:ADDC Rw1,ind16 is op=0xf4; fn=0x3 & Rw1; ind16 {result:2=Rw1+ind16+zext(CF); CF=carry(Rw1,ind16+zext(CF)); Rw1=result; ZF=Rw1==0;}
+:ADDC Rw1,ind16 is op=0xf4; fn=0x3 & Rw1; ind16 {tmp:2=Rw1+ind16+zext(CF); CF=carry(Rw1,ind16+zext(CF)); Rw1=tmp; ZF=Rw1==0;}
 :XOR Rw1,ind16 is op=0xf4; fn=0x4 & Rw1; ind16 {Rw1=Rw1^ind16; ZF=Rw1==0;}
 :CMP Rw1,ind16 is op=0xf4; fn=0x5 & Rw1; ind16 {ZF=Rw1==ind16; CF=Rw1<ind16;}
 :SHL Rw1,ind16 is op=0xf4; fn=0x6 & Rw1; ind16 {CF=ind16 s< 0; Rw1=ind16<<1; ZF=Rw1==0;}
+:SHLC Rw1,ind16 is op=0xf4; fn=0x7 & Rw1; ind16 {tmp:2=(ind16<<1)|zext(CF); CF=ind16 s< 0; Rw1=tmp; ZF=Rw1==0;}
 :DEC Rw1,ind16 is op=0xf4; fn=0x8 & Rw1; ind16 {CF=ind16!=0; Rw1=ind16-1; ZF=Rw1==0;}
 :INC Rw1,ind16 is op=0xf4; fn=0x9 & Rw1; ind16 {Rw1=ind16+1; ZF=Rw1==0; CF=Rw1==0;}
 :NOT Rw1,ind16 is op=0xf4; fn=0xa & Rw1; ind16 {Rw1=~ind16; ZF=Rw1==0;}
@@ -326,10 +330,11 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :AND Rw1,dir16 is op=0xf5; fn=0x0 & Rw1; dir16 {Rw1=Rw1&dir16; ZF=Rw1==0;}
 :OR Rw1,dir16 is op=0xf5; fn=0x1 & Rw1; dir16 {Rw1=Rw1|dir16; ZF=Rw1==0;}
 :ADD Rw1,dir16 is op=0xf5; fn=0x2 & Rw1; dir16 {CF=carry(Rw1,dir16); Rw1=Rw1+dir16; ZF=Rw1==0;}
-:ADDC Rw1,dir16 is op=0xf5; fn=0x3 & Rw1; dir16 {result:2=Rw1+dir16+zext(CF); CF=carry(Rw1,dir16+zext(CF)); Rw1=result; ZF=Rw1==0;}
+:ADDC Rw1,dir16 is op=0xf5; fn=0x3 & Rw1; dir16 {tmp:2=Rw1+dir16+zext(CF); CF=carry(Rw1,dir16+zext(CF)); Rw1=tmp; ZF=Rw1==0;}
 :XOR Rw1,dir16 is op=0xf5; fn=0x4 & Rw1; dir16 {Rw1=Rw1^dir16; ZF=Rw1==0;}
 :CMP Rw1,dir16 is op=0xf5; fn=0x5 & Rw1; dir16 {ZF=Rw1==dir16; CF=Rw1<dir16;}
 :SHL Rw1,dir16 is op=0xf5; fn=0x6 & Rw1; dir16 {CF=dir16 s< 0; Rw1=dir16<<1; ZF=Rw1==0;}
+:SHLC Rw1,dir16 is op=0xf5; fn=0x7 & Rw1; dir16 {tmp:2=(dir16<<1)|zext(CF); CF=dir16 s< 0; Rw1=tmp; ZF=Rw1==0;}
 :DEC Rw1,dir16 is op=0xf5; fn=0x8 & Rw1; dir16 {CF=dir16!=0; Rw1=dir16-1; ZF=Rw1==0;}
 :INC Rw1,dir16 is op=0xf5; fn=0x9 & Rw1; dir16 {Rw1=dir16+1; ZF=Rw1==0; CF=Rw1==0;}
 :NOT Rw1,dir16 is op=0xf5; fn=0xa & Rw1; dir16 {Rw1=~dir16; ZF=Rw1==0;}
