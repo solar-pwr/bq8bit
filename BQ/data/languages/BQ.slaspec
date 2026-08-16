@@ -24,7 +24,7 @@ define space CODE type=ram_space size=2 wordsize=1 default;
 define space DATA type=ram_space size=2 wordsize=1;
 define space register type=register_space size=2;
 
-define register offset=0 size=2 [R0 R1 R2 R3 R4 R5 R6 R7 SP X9 X10 X11 X12 X13 X14 X15 PC FLAGS];
+define register offset=0 size=2 [R0 R1 R2 R3 R4 R5 R6 R7 SP X9 X10 X11 X12 X13 X14 X15 PC FLAGS RPC];
 define register offset=0 size=1 [R0L R0H R1L R1H R2L R2H R3L R3H R4L R4H R5L R5H R6L R6H R7L R7H];
 
 define bitrange ZF=FLAGS[0,1]
@@ -166,9 +166,9 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :RET R7 is op=0x9a & R7 {return [R7];}
 :JMP u16 is op=0x9b; u16 {tmp:2=u16; goto [tmp];}
 :MACRO u8 is op=0x9c; u8 {tmp:1=u8; Macro(tmp);}
-:XCALL u16 is op=0x9d; u16 {tmp:2=u16; push16(&:2 inst_next); call [tmp];} # not sure if it uses stack or something else
-:CALL u16+R0,R7 is op=0x9e & R7; u16 & R0 {tmp:2=u16+R0; R7 = &:2 inst_next; call [tmp];}
-:CALL u16,R7 is op=0x9f & R7; u16 {tmp:2=u16; R7 = &:2 inst_next; call [tmp];}
+:CALL u16,RPC is op=0x9d; u16 & RPC {RPC=inst_next; tmp:2=u16; goto [tmp];} # not sure where the return address is stored
+:CALL u16+R0,R7 is op=0x9e & R7; u16 & R0 {R7=inst_next; tmp:2=u16+R0; call [tmp];}
+:CALL u16,R7 is op=0x9f & R7; u16 {R7=inst_next; tmp:2=u16; call [tmp];}
 
 # 0xA0-0xAF
 :POP Rb1 is op=0xa0; Rb1 {pop8(Rb1);}
@@ -180,10 +180,10 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :MOV Rb1,Rb2 is op=0xa6; Rb1 & Rb2 {Rb1=Rb2; ZF=Rb1==0;}
 :SUB SP,u8 is op=0xa7 & SP; u8 {SP=SP-zext(u8);}
 :ADD SP,8 is op=0xa8 & SP {SP=SP+8;}
-:POP R0L is op=0xa9 & R0L {pop8(R0L);}
+:ADD SP,1 is op=0xa9 & SP {SP=SP+1;}
 :ADD SP,2 is op=0xaa & SP {SP=SP+2;}
 :ADD SP,3 is op=0xab & SP {SP=SP+3;}
-:POP R1,R2 is op=0xac & R1 & R2 {pop16(R1); pop16(R2);}
+:ADD SP,4 is op=0xac & SP {SP=SP+4;}
 :ADD SP,5 is op=0xad & SP {SP=SP+5;}
 :ADD SP,6 is op=0xae & SP {SP=SP+6;}
 :ADD SP,7 is op=0xaf & SP {SP=SP+7;}
@@ -197,8 +197,8 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :CMP Rb1,Rb is op_47=0b1011 & Rb; fn=0x5 & Rb1 {ZF=Rb1==Rb; CF=Rb1<Rb;}
 :SHL Rb1,Rb is op_47=0b1011 & Rb; fn=0x6 & Rb1 {CF=Rb s< 0; Rb1=Rb<<1; ZF=Rb1==0;}
 :SHLC Rb1,Rb is op_47=0b1011 & Rb; fn=0x7 & Rb1 {tmp:1=(Rb<<1)|zext(CF); CF=Rb s< 0; Rb1=tmp; ZF=Rb1==0;}
-:DEC Rb1,Rb is op_47=0b1011 & Rb; fn=0x8 & Rb1 {CF=Rb!=0; Rb1=Rb-1; ZF=Rb1==0;}
-:INC Rb1,Rb is op_47=0b1011 & Rb; fn=0x9 & Rb1 {Rb1=Rb+1; ZF=Rb1==0; CF=Rb1==0;}
+:DEC Rb1,Rb is op_47=0b1011 & Rb; fn=0x8 & Rb1 {Rb1=Rb-1; ZF=Rb1==0; CF=Rb1 s< 0;}
+:INC Rb1,Rb is op_47=0b1011 & Rb; fn=0x9 & Rb1 {Rb1=Rb+1; ZF=Rb1==0; CF=Rb1 s< 0;}
 :NOT Rb1,Rb is op_47=0b1011 & Rb; fn=0xa & Rb1 {Rb1=~Rb; ZF=Rb1==0;}
 :SHR Rb1,Rb is op_47=0b1011 & Rb; fn=0xb & Rb1 {CF=Rb&1; Rb1=Rb>>1; ZF=Rb1==0;}
 :SUBB Rb1,Rb,0 is op_47=0b1011 & Rb; fn=0xc & Rb1 {tmp:1=CF; CF=Rb<tmp; Rb1=Rb-tmp; ZF=Rb1==0;}
@@ -227,8 +227,8 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :CMP Rb1,ind8 is op=0xe0; fn=0x5 & Rb1; ind8 {ZF=Rb1==ind8; CF=Rb1<ind8;}
 :SHL Rb1,ind8 is op=0xe0; fn=0x6 & Rb1; ind8 {CF=ind8 s< 0; Rb1=ind8<<1; ZF=Rb1==0;}
 :SHLC Rb1,ind8 is op=0xe0; fn=0x7 & Rb1; ind8 {tmp:1=(ind8<<1)|zext(CF); CF=ind8 s< 0; Rb1=tmp; ZF=Rb1==0;}
-:DEC Rb1,ind8 is op=0xe0; fn=0x8 & Rb1; ind8 {CF=ind8!=0; Rb1=ind8-1; ZF=Rb1==0;}
-:INC Rb1,ind8 is op=0xe0; fn=0x9 & Rb1; ind8 {Rb1=ind8+1; ZF=Rb1==0; CF=Rb1==0;}
+:DEC Rb1,ind8 is op=0xe0; fn=0x8 & Rb1; ind8 {Rb1=ind8-1; ZF=Rb1==0; CF=Rb1 s< 0;}
+:INC Rb1,ind8 is op=0xe0; fn=0x9 & Rb1; ind8 {Rb1=ind8+1; ZF=Rb1==0; CF=Rb1 s< 0;}
 :NOT Rb1,ind8 is op=0xe0; fn=0xa & Rb1; ind8 {Rb1=~ind8; ZF=Rb1==0;}
 :SHR Rb1,ind8 is op=0xe0; fn=0xb & Rb1; ind8 {CF=ind8&1; Rb1=ind8>>1; ZF=Rb1==0;}
 :SUB Rb1,ind8 is op=0xe0; fn=0xc & Rb1; ind8 {CF=Rb1<ind8; Rb1=Rb1-ind8; ZF=Rb1==0;}
@@ -244,8 +244,8 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :CMP Rb1,dir8 is op=0xe4; fn=0x5 & Rb1; dir8 {ZF=Rb1==dir8; CF=Rb1<dir8;}
 :SHL Rb1,dir8 is op=0xe4; fn=0x6 & Rb1; dir8 {CF=dir8 s< 0; Rb1=dir8<<1; ZF=Rb1==0;}
 :SHLC Rb1,dir8 is op=0xe4; fn=0x7 & Rb1; dir8 {tmp:1=(dir8<<1)|zext(CF); CF=dir8 s< 0; Rb1=tmp; ZF=Rb1==0;}
-:DEC Rb1,dir8 is op=0xe4; fn=0x8 & Rb1; dir8 {CF=dir8!=0; Rb1=dir8-1; ZF=Rb1==0;}
-:INC Rb1,dir8 is op=0xe4; fn=0x9 & Rb1; dir8 {Rb1=dir8+1; ZF=Rb1==0; CF=Rb1==0;}
+:DEC Rb1,dir8 is op=0xe4; fn=0x8 & Rb1; dir8 {Rb1=dir8-1; ZF=Rb1==0; CF=Rb1 s< 0;}
+:INC Rb1,dir8 is op=0xe4; fn=0x9 & Rb1; dir8 {Rb1=dir8+1; ZF=Rb1==0; CF=Rb1 s< 0;}
 :NOT Rb1,dir8 is op=0xe4; fn=0xa & Rb1; dir8 {Rb1=~dir8; ZF=Rb1==0;}
 :SHR Rb1,dir8 is op=0xe4; fn=0xb & Rb1; dir8 {CF=dir8&1; Rb1=dir8>>1; ZF=Rb1==0;}
 :SUB Rb1,dir8 is op=0xe4; fn=0xc & Rb1; dir8 {CF=Rb1<dir8; Rb1=Rb1-dir8; ZF=Rb1==0;}
@@ -293,8 +293,8 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :CMP Rw1,Rw is op_37=0b11101 & Rw; fn=0x5 & Rw1 {ZF=Rw1==Rw; CF=Rw1<Rw;}
 :SHL Rw1,Rw is op_37=0b11101 & Rw; fn=0x6 & Rw1 {CF=Rw s< 0; Rw1=Rw<<1; ZF=Rw1==0;}
 :SHLC Rw1,Rw is op_37=0b11101 & Rw; fn=0x7 & Rw1 {tmp:2=(Rw<<1)|zext(CF); CF=Rw s< 0; Rw1=tmp; ZF=Rw1==0;}
-:DEC Rw1,Rw is op_37=0b11101 & Rw; fn=0x8 & Rw1 {CF=Rw!=0; Rw1=Rw-1; ZF=Rw1==0;}
-:INC Rw1,Rw is op_37=0b11101 & Rw; fn=0x9 & Rw1 {Rw1=Rw+1; ZF=Rw1==0; CF=Rw1==0;}
+:DEC Rw1,Rw is op_37=0b11101 & Rw; fn=0x8 & Rw1 {Rw1=Rw-1; ZF=Rw1==0; CF=Rw1 s< 0;}
+:INC Rw1,Rw is op_37=0b11101 & Rw; fn=0x9 & Rw1 {Rw1=Rw+1; ZF=Rw1==0; CF=Rw1 s< 0;}
 :NOT Rw1,Rw is op_37=0b11101 & Rw; fn=0xa & Rw1 {Rw1=~Rw; ZF=Rw1==0;}
 :NEG Rw1,Rw is op_37=0b11101 & Rw; fn=0xb & Rw1 {CF=0<Rw; Rw1=0-Rw; ZF=Rw1==0;}
 :SUB Rw1,Rw is op_37=0b11101 & Rw; fn=0xc & Rw1 {CF=Rw1<Rw; Rw1=Rw1-Rw; ZF=Rw1==0;}
@@ -317,8 +317,8 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :CMP Rw1,ind16 is op=0xf4; fn=0x5 & Rw1; ind16 {ZF=Rw1==ind16; CF=Rw1<ind16;}
 :SHL Rw1,ind16 is op=0xf4; fn=0x6 & Rw1; ind16 {CF=ind16 s< 0; Rw1=ind16<<1; ZF=Rw1==0;}
 :SHLC Rw1,ind16 is op=0xf4; fn=0x7 & Rw1; ind16 {tmp:2=(ind16<<1)|zext(CF); CF=ind16 s< 0; Rw1=tmp; ZF=Rw1==0;}
-:DEC Rw1,ind16 is op=0xf4; fn=0x8 & Rw1; ind16 {CF=ind16!=0; Rw1=ind16-1; ZF=Rw1==0;}
-:INC Rw1,ind16 is op=0xf4; fn=0x9 & Rw1; ind16 {Rw1=ind16+1; ZF=Rw1==0; CF=Rw1==0;}
+:DEC Rw1,ind16 is op=0xf4; fn=0x8 & Rw1; ind16 {Rw1=ind16-1; ZF=Rw1==0; CF=Rw1 s< 0;}
+:INC Rw1,ind16 is op=0xf4; fn=0x9 & Rw1; ind16 {Rw1=ind16+1; ZF=Rw1==0; CF=Rw1 s< 0;}
 :NOT Rw1,ind16 is op=0xf4; fn=0xa & Rw1; ind16 {Rw1=~ind16; ZF=Rw1==0;}
 :NEG Rw1,ind16 is op=0xf4; fn=0xb & Rw1; ind16 {CF=0<ind16; Rw1=0-ind16; ZF=Rw1==0;}
 :SUB Rw1,ind16 is op=0xf4; fn=0xc & Rw1; ind16 {CF=Rw1<ind16; Rw1=Rw1-ind16; ZF=Rw1==0;}
@@ -335,8 +335,8 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :CMP Rw1,dir16 is op=0xf5; fn=0x5 & Rw1; dir16 {ZF=Rw1==dir16; CF=Rw1<dir16;}
 :SHL Rw1,dir16 is op=0xf5; fn=0x6 & Rw1; dir16 {CF=dir16 s< 0; Rw1=dir16<<1; ZF=Rw1==0;}
 :SHLC Rw1,dir16 is op=0xf5; fn=0x7 & Rw1; dir16 {tmp:2=(dir16<<1)|zext(CF); CF=dir16 s< 0; Rw1=tmp; ZF=Rw1==0;}
-:DEC Rw1,dir16 is op=0xf5; fn=0x8 & Rw1; dir16 {CF=dir16!=0; Rw1=dir16-1; ZF=Rw1==0;}
-:INC Rw1,dir16 is op=0xf5; fn=0x9 & Rw1; dir16 {Rw1=dir16+1; ZF=Rw1==0; CF=Rw1==0;}
+:DEC Rw1,dir16 is op=0xf5; fn=0x8 & Rw1; dir16 {Rw1=dir16-1; ZF=Rw1==0; CF=Rw1 s< 0;}
+:INC Rw1,dir16 is op=0xf5; fn=0x9 & Rw1; dir16 {Rw1=dir16+1; ZF=Rw1==0; CF=Rw1 s< 0;}
 :NOT Rw1,dir16 is op=0xf5; fn=0xa & Rw1; dir16 {Rw1=~dir16; ZF=Rw1==0;}
 :NEG Rw1,dir16 is op=0xf5; fn=0xb & Rw1; dir16 {CF=0<dir16; Rw1=0-dir16; ZF=Rw1==0;}
 :SUB Rw1,dir16 is op=0xf5; fn=0xc & Rw1; dir16 {CF=Rw1<dir16; Rw1=Rw1-dir16; ZF=Rw1==0;}
@@ -360,8 +360,8 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :UNK.FC u8 is op=0xfc; u8 {tmp:1=u8; UnkFC(tmp);}
 
 # 0xFD-0xFE
-:XRET is op=0xfd {tmp:2=0; pop16(tmp); return [tmp];} # not sure if it uses stack or something else
-:IRET is op=0xfe {tmp:2=0; pop16(tmp); return [tmp];} # something missing
+:RET RPC is op=0xfd & RPC {goto [RPC];} # not sure where the return address is stored
+:IRET is op=0xfe {local tmp:2; pop16(tmp); return [tmp];} # something missing
 
 :UNK op is op {Unk();}
 
