@@ -187,6 +187,7 @@ rel3: rel is data8 [rel=inst_next+data8-0x100;] {export *[CODE]:1 rel;}
 :MOV.B dir8,u8 is op=0xa4; dir8; u8 {dir8=u8;}
 :ADD SP,u8 is op=0xa5 & SP; u8 {SP=SP+zext(u8);}
 :MOV Rb1,Rb2 is op=0xa6; Rb1 & Rb2 {Rb1=Rb2; ZF=Rb1==0;}
+:MOVZ R0,Rb2 is op=0xa6; Rb1=0 & R0 & Rb2 {R0=zext(Rb2); ZF=R0==0;} # this seems to be an exception
 :SUB SP,u8 is op=0xa7 & SP; u8 {SP=SP-zext(u8);}
 :ADD SP,8 is op=0xa8 & SP {SP=SP+8;}
 :ADD SP,1 is op=0xa9 & SP {SP=SP+1;}
