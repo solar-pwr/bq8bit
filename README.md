@@ -12,6 +12,6 @@ https://www.karosium.com/2016/08/smbusb-hacking-smart-batteries.html
 
 Copy the **BQ** directory into **$GHIDRA_DIR/Ghidra/Processors/**, then run Ghidra.
 
-The *code* and *data* parts of the flash image have to be loaded separately. First load *code* (65536 bytes max., located at 0x100000 in the .srec file) to **CODE:0**,
-then use *File/Add To Program...* (not *File/Import File...*!!!) to add *data* (16384 bytes max., located at 0x4000) to **DATA:0x4000**. In memory map, set **CODE**
+The *code* and *data* parts of the flash image have to be loaded separately. First load *code* (0xE000 bytes max., located at 0x100000 in the .srec file) to **CODE:0**,
+then use *File/Add To Program...* (not *File/Import File...*!!!) to add *data* (0x2000 bytes max., located at 0x4000) to **DATA:0x4000**. In memory map, set **CODE**
 as read-only.
